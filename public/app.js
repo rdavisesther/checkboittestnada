@@ -238,7 +238,7 @@ function renderResults(data) {
                 <span class="chip ${passClass(m.spf)}">SPF ${esc(m.spf)}</span>
                 <span class="chip ${passClass(m.dkim)}">DKIM ${esc(m.dkim)}</span>
                 <span class="chip domain">${esc(m.domain)}</span>
-                ${(m.ip && m.ip.length) ? `<span class="chip ip">IP: ${esc(m.ip[0])}</span>` : ''}
+                <span class="chip ip">IP: ${(m.ip && m.ip.length) ? esc(m.ip[0]) : 'n/a'}</span>
               </div>
             </div>
           `).join('')}
