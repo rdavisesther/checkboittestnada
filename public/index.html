@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Inbox Tester v1</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div>
+        <p class="eyebrow">DELIVERABILITY LAB</p>
+        <h1>Inbox Tester <span>v1</span></h1>
+        <p class="sub">Send one test to your two authorized mailboxes and monitor delivery.</p>
+      </div>
+      <div class="live"><i></i> Vercel</div>
+    </header>
+
+    <section class="boxes card">
+      <div class="section-title">Test mailboxes</div>
+      <div id="mailboxes" class="mailbox-grid"></div>
+    </section>
+
+    <section class="card">
+      <div class="section-title">Create test</div>
+
+      <label>Subject</label>
+      <input id="subject" type="text" placeholder="Your test subject">
+
+      <label>HTML creative</label>
+      <textarea id="html" spellcheck="false" placeholder="<html>...</html>"></textarea>
+
+      <div class="actions">
+        <button id="send">Send test</button>
+        <span id="message"></span>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="section-head">
+        <div class="section-title">Results</div>
+      </div>
+      <div id="results" class="empty">No test yet.</div>
+    </section>
+
+    <footer>
+      Use only mailboxes and sending accounts you own or are authorized to test.
+    </footer>
+  </main>
+  <script src="/app.js"></script>
+</body>
+</html>
