@@ -230,6 +230,7 @@ function renderResults(data) {
             <div class="match">
               <div class="match-head">
                 <span class="loc ${m.location === 'spam' ? 'spam' : 'inbox'}">${m.location === 'spam' ? 'SPAM' : 'INBOX'}</span>
+                <span class="m-subject">${esc(m.subject)}</span>
                 <span class="m-sender">${esc(m.sender || m.from)}</span>
                 <span class="m-date">${m.date ? new Date(m.date).toLocaleString() : ''}</span>
               </div>
@@ -237,7 +238,7 @@ function renderResults(data) {
                 <span class="chip ${passClass(m.spf)}">SPF ${esc(m.spf)}</span>
                 <span class="chip ${passClass(m.dkim)}">DKIM ${esc(m.dkim)}</span>
                 <span class="chip domain">${esc(m.domain)}</span>
-                ${(m.ip && m.ip.length) ? `<span class="chip ip">IP: ${m.ip.map(ip => esc(ip)).join(' · ')}</span>` : ''}
+                ${(m.ip && m.ip.length) ? `<span class="chip ip">IP: ${esc(m.ip[0])}</span>` : ''}
               </div>
             </div>
           `).join('')}
