@@ -17,51 +17,11 @@
     </header>
 
     <section class="card">
-      <div class="section-title">IMAP Mailbox 1</div>
-      <div class="form-grid">
-        <label>Email
-          <input id="b1_email" type="email" placeholder="user@gmail.com">
-        </label>
-        <label>IMAP Host
-          <input id="b1_host" type="text" placeholder="imap.gmail.com">
-        </label>
-        <label>Port
-          <input id="b1_port" type="number" value="993">
-        </label>
-        <label>
-          <input id="b1_secure" type="checkbox" checked> SSL/TLS
-        </label>
-        <label>Username
-          <input id="b1_user" type="text" placeholder="user@gmail.com">
-        </label>
-        <label>Password / App Password
-          <input id="b1_pass" type="password" placeholder="xxxx xxxx xxxx xxxx">
-        </label>
+      <div class="section-head">
+        <div class="section-title">IMAP Mailboxes</div>
+        <button id="addBox" class="ghost">+ Add mailbox</button>
       </div>
-    </section>
-
-    <section class="card">
-      <div class="section-title">IMAP Mailbox 2</div>
-      <div class="form-grid">
-        <label>Email
-          <input id="b2_email" type="email" placeholder="user2@gmail.com">
-        </label>
-        <label>IMAP Host
-          <input id="b2_host" type="text" placeholder="imap.gmail.com">
-        </label>
-        <label>Port
-          <input id="b2_port" type="number" value="993">
-        </label>
-        <label>
-          <input id="b2_secure" type="checkbox" checked> SSL/TLS
-        </label>
-        <label>Username
-          <input id="b2_user" type="text" placeholder="user2@gmail.com">
-        </label>
-        <label>Password / App Password
-          <input id="b2_pass" type="password" placeholder="xxxx xxxx xxxx xxxx">
-        </label>
-      </div>
+      <div id="boxes"></div>
     </section>
 
     <section class="card">

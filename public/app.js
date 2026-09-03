@@ -8,64 +8,125 @@ const statusLabels = {
   error: 'Error'
 };
 
-function saveConfig() {
-  const config = {};
-  for (const n of [1, 2]) {
-    config[`box${n}`] = {
-      email: $(`b${n}_email`).value.trim(),
-      host: $(`b${n}_host`).value.trim(),
-      port: Number($(`b${n}_port`).value) || 993,
-      secure: $(`b${n}_secure`).checked,
-      user: $(`b${n}_user`).value.trim(),
-      pass: $(`b${n}_pass`).value
-    };
+let boxCount = 0;
+
+function boxFields(n) {
+  return {
+    email: $(`b${n}_email`),
+    host: $(`b${n}_host`),
+    port: $(`b${n}_port`),
+    secure: $(`b${n}_secure`),
+    user: $(`b${n}_user`),
+    pass: $(`b${n}_pass`)
+  };
+}
+
+function addBox(config = {}) {
+  boxCount++;
+  const n = boxCount;
+  const wrap = document.createElement('div');
+  wrap.className = 'box-card';
+  wrap.id = `box_${n}`;
+  wrap.innerHTML = `
+    <div class="box-head">
+      <div class="box-title">IMAP Mailbox ${n}</div>
+      ${n > 1 ? `<button type="button" class="ghost remove" onclick="removeBox(${n})">Remove</button>` : ''}
+    </div>
+    <div class="form-grid">
+      <label>Email <input id="b${n}_email" type="email" placeholder="user@gmail.com"></label>
+      <label>IMAP Host <input id="b${n}_host" type="text" placeholder="imap.gmail.com"></label>
+      <label>Port <input id="b${n}_port" type="number" value="993"></label>
+      <label class="checkline"><input id="b${n}_secure" type="checkbox" checked> SSL/TLS</label>
+      <label>Username <input id="b${n}_user" type="text" placeholder="user@gmail.com"></label>
+      <label>Password / App Password <input id="b${n}_pass" type="password" placeholder="xxxx xxxx xxxx xxxx"></label>
+    </div>
+  `;
+  document.getElementById('boxes').appendChild(wrap);
+
+  const c = boxFields(n);
+  if (config.email) c.email.value = config.email;
+  if (config.host) c.host.value = config.host;
+  if (config.port) c.port.value = config.port;
+  if (config.user) c.user.value = config.user;
+  if (config.pass) c.pass.value = config.pass;
+  c.secure.checked = config.secure !== false;
+
+  for (const key of ['email','host','port','secure','user','pass']) {
+    c[key].addEventListener('change', saveConfig);
   }
+}
+
+function removeBox(n) {
+  const el = document.getElementById(`box_${n}`);
+  if (el) el.remove();
+  saveConfig();
+}
+
+function getAllBoxes() {
+  const boxes = [];
+  for (let n = 1; n <= boxCount; n++) {
+    const el = document.getElementById(`b${n}_email`);
+    if (!el) continue;
+    const c = boxFields(n);
+    boxes.push({
+      n,
+      email: c.email.value.trim(),
+      host: c.host.value.trim(),
+      port: Number(c.port.value) || 993,
+      secure: c.secure.checked,
+      user: c.user.value.trim(),
+      pass: c.pass.value
+    });
+  }
+  return boxes;
+}
+
+function saveConfig() {
+  const list = getAllBoxes();
   try {
-    localStorage.setItem('imap_config', JSON.stringify(config));
+    localStorage.setItem('imap_boxes', JSON.stringify(list));
   } catch {}
 }
 
 function loadConfig() {
+  let list = [];
   try {
-    const raw = localStorage.getItem('imap_config');
-    if (!raw) return;
-    const config = JSON.parse(raw);
-    if (!config || typeof config !== 'object') return;
-    for (const n of [1, 2]) {
-      const b = config[`box${n}`];
-      if (!b || typeof b !== 'object') continue;
-      if (b.email) $(`b${n}_email`).value = b.email;
-      if (b.host) $(`b${n}_host`).value = b.host;
-      if (b.port) $(`b${n}_port`).value = b.port;
-      $(`b${n}_secure`).checked = b.secure !== false;
-      if (b.user) $(`b${n}_user`).value = b.user;
-      if (b.pass) $(`b${n}_pass`).value = b.pass;
+    const raw = localStorage.getItem('imap_boxes');
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) list = parsed;
     }
   } catch {
-    try { localStorage.removeItem('imap_config'); } catch {}
+    try { localStorage.removeItem('imap_boxes'); } catch {}
   }
+
+  if (list.length === 0) {
+    addBox({});
+    addBox({});
+    return;
+  }
+  list.forEach(b => {
+    const box = b && typeof b === 'object' ? b : {};
+    if (b && Object.keys(box).length) {
+      addBox(box);
+    } else {
+      addBox({});
+    }
+  });
 }
 
 function getConfig() {
   saveConfig();
-  const boxes = [];
-  for (const n of [1, 2]) {
-    const email = $(`b${n}_email`).value.trim();
-    const host = $(`b${n}_host`).value.trim();
-    const user = $(`b${n}_user`).value.trim();
-    const pass = $(`b${n}_pass`).value;
-    if (email && host && user && pass) {
-      boxes.push({
-        email,
-        host,
-        port: Number($(`b${n}_port`).value) || 993,
-        secure: $(`b${n}_secure`).checked,
-        user,
-        pass
-      });
-    }
-  }
-  return boxes;
+  return getAllBoxes()
+    .filter(b => b.email && b.host && b.user && b.pass)
+    .map(b => ({
+      email: b.email,
+      host: b.host,
+      port: b.port,
+      secure: b.secure,
+      user: b.user,
+      pass: b.pass
+    }));
 }
 
 async function check() {
@@ -76,7 +137,6 @@ async function check() {
   }
 
   const hours = Math.max(1, Number($('hours').value) || 24);
-
   const mailboxes = getConfig();
   if (mailboxes.length === 0) {
     $('message').textContent = 'Configure at least one mailbox.';
@@ -123,7 +183,7 @@ function renderResults(data) {
   $('results').innerHTML = `
     <div class="meta">Subject: ${esc(data.subject)} · Last ${esc(data.hours)}h · ${new Date(data.checkedAt).toLocaleString()}</div>
     ${data.results.map(r => {
-      const label = r.status === 'spam' ? 'Spam / Junk' : r.status === 'inbox' ? 'Inbox' : statusLabels[r.status] || r.status;
+      const label = statusLabels[r.status] || r.status;
       const countEl = r.count !== undefined ? `<div class="meta"><strong>${r.count}</strong> match(es) found</div>` : '';
       const list = (r.found && r.found.length) ? `
         <div class="match-list">
@@ -157,9 +217,6 @@ function esc(v) {
   }[c]));
 }
 
-for (const el of document.querySelectorAll('input, textarea')) {
-  el.addEventListener('change', saveConfig);
-}
-
+$('addBox').addEventListener('click', () => addBox({}));
 $('check').addEventListener('click', check);
 loadConfig();
