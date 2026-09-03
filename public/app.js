@@ -192,6 +192,7 @@ function renderResults(data) {
               <div>${esc(m.folder)}</div>
               <div>${m.date ? new Date(m.date).toLocaleString() : ''}</div>
               <div>${m.from ? 'From: ' + esc(m.from) : ''}</div>
+              ${(m.ip && m.ip.length) ? `<div class="ips">IP: ${m.ip.map(ip => esc(ip)).join(' · ')}</div>` : ''}
             </div>
           `).join('')}
         </div>
