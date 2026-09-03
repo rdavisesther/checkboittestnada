@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Inbox Tester v1</title>
+  <title>Inbox Tester</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 <body>
@@ -11,28 +11,66 @@
     <header>
       <div>
         <p class="eyebrow">DELIVERABILITY LAB</p>
-        <h1>Inbox Tester <span>v1</span></h1>
-        <p class="sub">Send one test to your two authorized mailboxes and monitor delivery.</p>
+        <h1>Inbox Tester</h1>
+        <p class="sub">Configure your IMAP mailboxes and check where your emails land.</p>
       </div>
-      <div class="live"><i></i> Vercel</div>
     </header>
 
-    <section class="boxes card">
-      <div class="section-title">Test mailboxes</div>
-      <div id="mailboxes" class="mailbox-grid"></div>
+    <section class="card">
+      <div class="section-title">IMAP Mailbox 1</div>
+      <div class="form-grid">
+        <label>Email
+          <input id="b1_email" type="email" placeholder="user@gmail.com">
+        </label>
+        <label>IMAP Host
+          <input id="b1_host" type="text" placeholder="imap.gmail.com">
+        </label>
+        <label>Port
+          <input id="b1_port" type="number" value="993">
+        </label>
+        <label>
+          <input id="b1_secure" type="checkbox" checked> SSL/TLS
+        </label>
+        <label>Username
+          <input id="b1_user" type="text" placeholder="user@gmail.com">
+        </label>
+        <label>Password / App Password
+          <input id="b1_pass" type="password" placeholder="xxxx xxxx xxxx xxxx">
+        </label>
+      </div>
     </section>
 
     <section class="card">
-      <div class="section-title">Create test</div>
+      <div class="section-title">IMAP Mailbox 2</div>
+      <div class="form-grid">
+        <label>Email
+          <input id="b2_email" type="email" placeholder="user2@gmail.com">
+        </label>
+        <label>IMAP Host
+          <input id="b2_host" type="text" placeholder="imap.gmail.com">
+        </label>
+        <label>Port
+          <input id="b2_port" type="number" value="993">
+        </label>
+        <label>
+          <input id="b2_secure" type="checkbox" checked> SSL/TLS
+        </label>
+        <label>Username
+          <input id="b2_user" type="text" placeholder="user2@gmail.com">
+        </label>
+        <label>Password / App Password
+          <input id="b2_pass" type="password" placeholder="xxxx xxxx xxxx xxxx">
+        </label>
+      </div>
+    </section>
 
-      <label>Subject</label>
-      <input id="subject" type="text" placeholder="Your test subject">
-
-      <label>HTML creative</label>
-      <textarea id="html" spellcheck="false" placeholder="<html>...</html>"></textarea>
-
+    <section class="card">
+      <div class="section-title">Check Inbox</div>
+      <label>Email subject to search
+        <input id="subject" type="text" placeholder="Your email subject line">
+      </label>
       <div class="actions">
-        <button id="send">Send test</button>
+        <button id="check">Check now</button>
         <span id="message"></span>
       </div>
     </section>
@@ -41,11 +79,11 @@
       <div class="section-head">
         <div class="section-title">Results</div>
       </div>
-      <div id="results" class="empty">No test yet.</div>
+      <div id="results" class="empty">Configure mailboxes above, then check.</div>
     </section>
 
     <footer>
-      Use only mailboxes and sending accounts you own or are authorized to test.
+      Your credentials stay in your browser (localStorage). Nothing is stored on any server.
     </footer>
   </main>
   <script src="/app.js"></script>

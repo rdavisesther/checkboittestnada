@@ -1,114 +1,137 @@
 const $ = id => document.getElementById(id);
-let currentTestId = null;
-let timer = null;
 
-const labels = {
-  sending: 'Sending',
-  sent: 'Sent / checking',
+const statusLabels = {
   inbox: 'Inbox',
   spam: 'Spam / Junk',
-  waiting: 'Waiting',
-  not_received: 'Not received',
+  not_found: 'Not found',
   not_configured: 'Not configured',
-  error: 'Error',
-  send_error: 'Send error'
+  error: 'Error'
 };
 
-async function loadMailboxes() {
-  const res = await fetch('/api/mailboxes');
-  const boxes = await res.json();
-  $('mailboxes').innerHTML = boxes.map(b => `
-    <div class="mailbox">
-      <div>
-        <strong>${escapeHtml(b.email)}</strong>
-        <small>${b.configured ? 'IMAP monitoring ready' : 'IMAP credentials not configured'}</small>
-      </div>
-      <span class="badge ${b.configured ? 'ok' : ''}">
-        ${b.configured ? 'Ready' : 'Setup'}
-      </span>
-    </div>
-  `).join('');
+function saveConfig() {
+  const config = {};
+  for (const n of [1, 2]) {
+    config[`box${n}`] = {
+      email: $(`b${n}_email`).value.trim(),
+      host: $(`b${n}_host`).value.trim(),
+      port: Number($(`b${n}_port`).value) || 993,
+      secure: $(`b${n}_secure`).checked,
+      user: $(`b${n}_user`).value.trim(),
+      pass: $(`b${n}_pass`).value
+    };
+  }
+  localStorage.setItem('imap_config', JSON.stringify(config));
 }
 
-async function sendTest() {
-  const subject = $('subject').value.trim();
-  const html = $('html').value.trim();
+function loadConfig() {
+  try {
+    const raw = localStorage.getItem('imap_config');
+    if (!raw) return;
+    const config = JSON.parse(raw);
+    for (const n of [1, 2]) {
+      const b = config[`box${n}`];
+      if (!b) continue;
+      $(`b${n}_email`).value = b.email || '';
+      $(`b${n}_host`).value = b.host || '';
+      $(`b${n}_port`).value = b.port || 993;
+      $(`b${n}_secure`).checked = b.secure !== false;
+      $(`b${n}_user`).value = b.user || '';
+      $(`b${n}_pass`).value = b.pass || '';
+    }
+  } catch {}
+}
 
-  if (!subject || !html) {
-    $('message').textContent = 'Subject and HTML are required.';
+function getConfig() {
+  saveConfig();
+  const boxes = [];
+  for (const n of [1, 2]) {
+    const email = $(`b${n}_email`).value.trim();
+    const host = $(`b${n}_host`).value.trim();
+    const user = $(`b${n}_user`).value.trim();
+    const pass = $(`b${n}_pass`).value;
+    if (email && host && user && pass) {
+      boxes.push({
+        email,
+        host,
+        port: Number($(`b${n}_port`).value) || 993,
+        secure: $(`b${n}_secure`).checked,
+        user,
+        pass
+      });
+    }
+  }
+  return boxes;
+}
+
+async function check() {
+  const subject = $('subject').value.trim();
+  if (!subject) {
+    $('message').textContent = 'Enter a subject to search.';
     return;
   }
 
-  $('send').disabled = true;
-  $('message').textContent = 'Sending...';
+  const mailboxes = getConfig();
+  if (mailboxes.length === 0) {
+    $('message').textContent = 'Configure at least one mailbox.';
+    return;
+  }
+
+  $('check').disabled = true;
+  $('message').textContent = 'Checking...';
+  $('results').innerHTML = '<div class="empty">Searching mailboxes...</div>';
 
   try {
-    const res = await fetch('/api/test', {
+    const res = await fetch('/api/check', {
       method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ subject, html })
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ mailboxes, subject })
     });
 
     const data = await res.json();
-    if (!res.ok && !data.id) throw new Error(data.error || 'Send failed.');
+    if (!res.ok) throw new Error(data.error || 'Check failed.');
 
-    currentTestId = data.id;
-    $('message').textContent = `Test started. ID: ${data.id}`;
-    render(data);
-    startPolling();
+    renderResults(data);
+    $('message').textContent = `Checked at ${new Date(data.checkedAt).toLocaleTimeString()}`;
   } catch (e) {
     $('message').textContent = e.message;
+    $('results').innerHTML = `<div class="empty">${esc(e.message)}</div>`;
   } finally {
-    $('send').disabled = false;
+    $('check').disabled = false;
   }
 }
 
-async function refresh() {
-  if (!currentTestId) return;
-  const res = await fetch(`/api/test?id=${encodeURIComponent(currentTestId)}`);
-  if (!res.ok) return;
-  const data = await res.json();
-  render(data);
+function renderResults(data) {
+  if (!data.results || data.results.length === 0) {
+    $('results').innerHTML = '<div class="empty">No results.</div>';
+    return;
+  }
 
-  const done = data.results.every(r =>
-    ['inbox','spam','not_received','error','not_configured','send_error'].includes(r.status)
-  );
-
-  if (done) stopPolling();
-}
-
-function startPolling() {
-  stopPolling();
-  timer = setInterval(refresh, 4000);
-}
-
-function stopPolling() {
-  if (timer) clearInterval(timer);
-  timer = null;
-}
-
-function render(test) {
   $('results').innerHTML = `
-    <div class="meta">Test ID: ${escapeHtml(test.id)} · ${new Date(test.createdAt).toLocaleString()}</div>
-    ${test.results.map(r => `
+    <div class="meta">Subject: ${esc(data.subject)} · ${new Date(data.checkedAt).toLocaleString()}</div>
+    ${data.results.map(r => `
       <div class="result">
         <div class="result-top">
-          <strong>${escapeHtml(r.mailbox)}</strong>
-          <span class="status ${escapeHtml(r.status)}">${labels[r.status] || escapeHtml(r.status)}</span>
+          <strong>${esc(r.email)}</strong>
+          <span class="status ${esc(r.status)}">${statusLabels[r.status] || esc(r.status)}</span>
         </div>
-        ${r.folder ? `<div class="meta">Folder: ${escapeHtml(r.folder)}</div>` : ''}
-        ${r.error ? `<div class="meta">${escapeHtml(r.error)}</div>` : ''}
-        ${['sending','sent','waiting'].includes(r.status) ? '<div class="bar"><div></div></div>' : ''}
+        ${r.from ? `<div class="meta">From: ${esc(r.from)}</div>` : ''}
+        ${r.folder ? `<div class="meta">Folder: ${esc(r.folder)}</div>` : ''}
+        ${r.date ? `<div class="meta">Date: ${new Date(r.date).toLocaleString()}</div>` : ''}
+        ${r.error ? `<div class="meta error">${esc(r.error)}</div>` : ''}
       </div>
     `).join('')}
   `;
 }
 
-function escapeHtml(value) {
-  return String(value ?? '').replace(/[&<>"']/g, c => ({
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
   }[c]));
 }
 
-$('send').addEventListener('click', sendTest);
-loadMailboxes();
+for (const el of document.querySelectorAll('input, textarea')) {
+  el.addEventListener('change', saveConfig);
+}
+
+$('check').addEventListener('click', check);
+loadConfig();

@@ -1,6 +1,6 @@
 {
-  "name": "inbox-tester-v1",
-  "version": "1.1.0",
+  "name": "inbox-tester",
+  "version": "2.0.0",
   "private": true,
   "type": "module",
   "scripts": {
@@ -8,9 +8,6 @@
     "start": "vercel dev"
   },
   "dependencies": {
-    "dotenv": "^16.4.7",
-    "imapflow": "^1.0.181",
-    "mailparser": "^3.7.4",
-    "nodemailer": "^7.0.6"
+    "imapflow": "^1.0.181"
   }
 }
