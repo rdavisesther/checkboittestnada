@@ -222,64 +222,68 @@ function renderResults(data) {
     return;
   }
 
-  const rows = [];
-  for (const r of data.results) {
-    if (!r.found || r.found.length === 0) continue;
-    for (const m of r.found) {
-      rows.push({
+  currentRows = [];
+  let html = '';
+
+  data.results.forEach((r, idx) => {
+    if (!r.found || r.found.length === 0) {
+      html += `
+        <div class="mb-group">
+          <div class="mb-title">Result Mailbox ${idx + 1} <span class="mb-mail">${esc(r.email)}</span></div>
+          <div class="empty">No delivery info.</div>
+        </div>`;
+      return;
+    }
+
+    const rows = r.found.map(m => {
+      const row = {
         mailbox: r.email,
         subject: m.subject || '',
         location: m.location,
         spf: m.spf || 'none',
         dkim: m.dkim || 'none',
         ip: (m.ip && m.ip[0]) || ''
-      });
-    }
-  }
+      };
+      currentRows.push(row);
+      return row;
+    });
 
-  if (rows.length === 0) {
-    $('results').innerHTML = '<div class="empty">No delivery info found.</div>';
-    return;
-  }
+    html += `
+      <div class="mb-group">
+        <div class="mb-title">Result Mailbox ${idx + 1} <span class="mb-mail">${esc(r.email)}</span></div>
+        <div class="tbl-scroll">
+          <table class="tbl">
+            <thead>
+              <tr><th>Subject</th><th>Inbox / Spam</th><th>SPF</th><th>DKIM</th><th>IP Received</th></tr>
+            </thead>
+            <tbody>
+              ${rows.map(row => `
+                <tr>
+                  <td class="td-subject">${esc(row.subject)}</td>
+                  <td><span class="loc ${row.location === 'spam' ? 'spam' : 'inbox'}">${row.location === 'spam' ? 'SPAM' : 'INBOX'}</span></td>
+                  <td><span class="chip ${passClass(row.spf)}">${esc(row.spf)}</span></td>
+                  <td><span class="chip ${passClass(row.dkim)}">${esc(row.dkim)}</span></td>
+                  <td class="td-ip">${esc(row.ip) || 'n/a'}</td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+  });
 
-  $('results').innerHTML = `
-    <div class="tbl-scroll">
-      <table class="tbl">
-        <thead>
-          <tr>
-            <th>Subject</th>
-            <th>Inbox / Spam</th>
-            <th>SPF</th>
-            <th>DKIM</th>
-            <th>IP Received</th>
-          </tr>
-        </thead>
-        <tbody>
-          ${rows.map(row => `
-            <tr>
-              <td class="td-subject">${esc(row.subject)}</td>
-              <td><span class="loc ${row.location === 'spam' ? 'spam' : 'inbox'}">${row.location === 'spam' ? 'SPAM' : 'INBOX'}</span></td>
-              <td><span class="chip ${passClass(row.spf)}">${esc(row.spf)}</span></td>
-              <td><span class="chip ${passClass(row.dkim)}">${esc(row.dkim)}</span></td>
-              <td class="td-ip">${esc(row.ip) || 'n/a'}</td>
-            </tr>
-          `).join('')}
-        </tbody>
-      </table>
-    </div>
-    <div class="tbl-summary">${rows.length} message(s) · Mailbox: ${esc(data.results.map(r => r.email).join(', '))}</div>
-  `;
+  $('results').innerHTML = html || '<div class="empty">No results.</div>';
 
-  currentRows = rows;
   updateCopyState();
 }
 
 function exportCsv() {
   if (!currentRows || currentRows.length === 0) return;
-  const header = ['Subject', 'Inbox/Spam', 'SPF', 'DKIM', 'IP Received'];
+  const header = ['Mailbox', 'Subject', 'Inbox/Spam', 'SPF', 'DKIM', 'IP Received'];
   const lines = [header];
   for (const row of currentRows) {
     lines.push([
+      `"${(row.mailbox || '').replace(/"/g, '""')}"`,
       `"${(row.subject || '').replace(/"/g, '""')}"`,
       row.location,
       row.spf,
