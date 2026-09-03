@@ -9,6 +9,7 @@ const statusLabels = {
 };
 
 let boxCount = 0;
+let lastResults = null;
 
 function boxFields(n) {
   return {
@@ -30,8 +31,12 @@ function addBox(config = {}) {
   wrap.innerHTML = `
     <div class="box-head">
       <div class="box-title">IMAP Mailbox ${n}</div>
-      ${n > 1 ? `<button type="button" class="ghost remove" onclick="removeBox(${n})">Remove</button>` : ''}
+      <div>
+        <button type="button" class="ghost minimal testBtn" onclick="testCnx(${n})">Test connection</button>
+        ${n > 1 ? `<button type="button" class="ghost remove" onclick="removeBox(${n})">Remove</button>` : ''}
+      </div>
     </div>
+    <div class="cnx-status" id="cnx_${n}"></div>
     <div class="form-grid">
       <label>Email <input id="b${n}_email" type="email" placeholder="user@gmail.com"></label>
       <label>IMAP Host <input id="b${n}_host" type="text" placeholder="imap.gmail.com"></label>
@@ -53,6 +58,45 @@ function addBox(config = {}) {
 
   for (const key of ['email','host','port','secure','user','pass']) {
     c[key].addEventListener('change', saveConfig);
+  }
+}
+
+async function testCnx(n) {
+  const c = boxFields(n);
+  const host = c.host.value.trim();
+  const user = c.user.value.trim();
+  const pass = c.pass.value;
+  const statusEl = document.getElementById(`cnx_${n}`);
+
+  if (!host || !user || !pass) {
+    statusEl.className = 'cnx-status err';
+    statusEl.textContent = 'Fill host, username and password first.';
+    return;
+  }
+
+  statusEl.className = 'cnx-status';
+  statusEl.textContent = 'Testing connection...';
+
+  try {
+    const res = await fetch('/api/test-cnx', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        host, port: Number(c.port.value) || 993, secure: c.secure.checked, user, pass
+      })
+    });
+    const data = await res.json();
+
+    if (data.ok) {
+      statusEl.className = 'cnx-status ok';
+      statusEl.textContent = `Connected ✓ (${data.account})`;
+    } else {
+      statusEl.className = 'cnx-status err';
+      statusEl.textContent = 'Connection failed: ' + (data.error || 'unknown error');
+    }
+  } catch (e) {
+    statusEl.className = 'cnx-status err';
+    statusEl.textContent = 'Error: ' + e.message;
   }
 }
 
@@ -162,7 +206,9 @@ async function check() {
     if (!res.ok) throw new Error(data.error || 'Check failed.');
 
     renderResults(data);
+    lastResults = data;
     $('message').textContent = `Checked at ${new Date(data.checkedAt).toLocaleTimeString()}`;
+    updateCopyState();
   } catch (e) {
     $('message').textContent = e.message;
     $('results').innerHTML = `<div class="empty">${esc(e.message)}</div>`;
@@ -192,6 +238,7 @@ function renderResults(data) {
               <div><span class="loc ${m.location === 'spam' ? 'spam' : 'inbox'}">${m.location === 'spam' ? 'SPAM' : 'INBOX'}</span> ${esc(m.subject)}</div>
               <div>${m.date ? new Date(m.date).toLocaleString() : ''}</div>
               <div>From: ${esc(m.from)}</div>
+              <div class="spf-row">${spfBadge(m.spf)}</div>
               ${(m.ip && m.ip.length) ? `<div class="ips">IP: ${m.ip.map(ip => esc(ip)).join(' · ')}</div>` : ''}
             </div>
           `).join('')}
@@ -219,6 +266,48 @@ function esc(v) {
   }[c]));
 }
 
+function spfBadge(spf) {
+  if (!spf) return '<span class="spf none">SPF: n/a</span>';
+  const s = String(spf);
+  const pass = /pass/i.test(s);
+  const fail = /fail/i.test(s);
+  const cls = pass ? 'pass' : fail ? 'fail' : 'none';
+  return `<span class="spf ${cls}">SPF: ${esc(spf)}</span>`;
+}
+
+function collectIps(location) {
+  if (!lastResults) return [];
+  const ips = new Set();
+  for (const r of lastResults.results) {
+    if (!r.found) continue;
+    for (const m of r.found) {
+      if (m.location !== location) continue;
+      for (const ip of (m.ip || [])) ips.add(ip);
+    }
+  }
+  return [...ips];
+}
+
+function copyText(text, btn) {
+  navigator.clipboard?.writeText(text).then(() => {
+    const prev = btn.textContent;
+    btn.textContent = 'Copied ✓';
+    setTimeout(() => { btn.textContent = prev; }, 1500);
+  }).catch(() => {});
+}
+
+function updateCopyState() {
+  if (!lastResults) return;
+  const inboxIps = collectIps('inbox').length;
+  const spamIps = collectIps('spam').length;
+  $('copyInbox').textContent = inboxIps ? `Copy Inbox IPs (${inboxIps})` : 'Copy Inbox IPs';
+  $('copySpam').textContent = spamIps ? `Copy Spam IPs (${spamIps})` : 'Copy Spam IPs';
+  $('copyInbox').disabled = inboxIps === 0;
+  $('copySpam').disabled = spamIps === 0;
+}
+
 $('addBox').addEventListener('click', () => addBox({}));
 $('check').addEventListener('click', check);
+$('copyInbox').addEventListener('click', () => copyText(collectIps('inbox').join('\n'), $('copyInbox')));
+$('copySpam').addEventListener('click', () => copyText(collectIps('spam').join('\n'), $('copySpam')));
 loadConfig();
