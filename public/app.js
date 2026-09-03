@@ -137,7 +137,7 @@ async function check() {
     return;
   }
 
-  const minutes = Math.max(1, Number($('minutes').value) || 1440);
+  const minutes = Math.max(1, Number($('minutes').value) || 4);
   const mailboxes = getConfig();
 
   $('check').disabled = true;
