@@ -10,6 +10,7 @@ const statusLabels = {
 
 let boxCount = 0;
 let lastResults = null;
+let currentRows = [];
 
 function gmailDefaults(email) {
   return {
@@ -221,45 +222,78 @@ function renderResults(data) {
     return;
   }
 
-  $('results').innerHTML = `
-    <div class="meta">Subject: ${esc(data.subject)}${data.from ? ' · From: ' + esc(data.from) : ''} · Last ${esc(data.minutes)} min</div>
-    ${data.results.map(r => {
-      const list = (r.found && r.found.length) ? `
-        <div class="match-list">
-          ${r.found.map(m => `
-            <div class="match">
-              <div class="match-head">
-                <span class="loc ${m.location === 'spam' ? 'spam' : 'inbox'}">${m.location === 'spam' ? 'SPAM' : 'INBOX'}</span>
-                <span class="m-subject">${esc(m.subject)}</span>
-                <span class="m-sender">${esc(m.sender || m.from)}</span>
-                <span class="m-date">${m.date ? new Date(m.date).toLocaleString() : ''}</span>
-              </div>
-              <div class="auth-row">
-                <span class="chip ${passClass(m.spf)}">SPF ${esc(m.spf)}</span>
-                <span class="chip ${passClass(m.dkim)}">DKIM ${esc(m.dkim)}</span>
-                <span class="chip domain">${esc(m.domain)}</span>
-                <span class="chip ip">IP: ${(m.ip && m.ip.length) ? esc(m.ip[0]) : 'n/a'}</span>
-              </div>
-            </div>
-          `).join('')}
-        </div>
-      ` : '<div class="empty">No delivery info.</div>';
+  const rows = [];
+  for (const r of data.results) {
+    if (!r.found || r.found.length === 0) continue;
+    for (const m of r.found) {
+      rows.push({
+        mailbox: r.email,
+        subject: m.subject || '',
+        location: m.location,
+        spf: m.spf || 'none',
+        dkim: m.dkim || 'none',
+        ip: (m.ip && m.ip[0]) || ''
+      });
+    }
+  }
 
-      return `
-        <div class="result">
-          <div class="result-top">
-            <strong>${esc(r.email)}</strong>
-            <span class="status ${esc(r.status)}">${esc(statusLabels[r.status] || r.status)}</span>
-          </div>
-          ${r.inbox !== undefined ? `<div class="meta"><strong>${r.inbox || 0}</strong> Inbox · <strong>${r.spam || 0}</strong> Spam</div>` : ''}
-          ${list}
-          ${r.error ? `<div class="meta error">${esc(r.error)}</div>` : ''}
-        </div>
-      `;
-    }).join('')}
+  if (rows.length === 0) {
+    $('results').innerHTML = '<div class="empty">No delivery info found.</div>';
+    return;
+  }
+
+  $('results').innerHTML = `
+    <div class="tbl-scroll">
+      <table class="tbl">
+        <thead>
+          <tr>
+            <th>Subject</th>
+            <th>Inbox / Spam</th>
+            <th>SPF</th>
+            <th>DKIM</th>
+            <th>IP Received</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(row => `
+            <tr>
+              <td class="td-subject">${esc(row.subject)}</td>
+              <td><span class="loc ${row.location === 'spam' ? 'spam' : 'inbox'}">${row.location === 'spam' ? 'SPAM' : 'INBOX'}</span></td>
+              <td><span class="chip ${passClass(row.spf)}">${esc(row.spf)}</span></td>
+              <td><span class="chip ${passClass(row.dkim)}">${esc(row.dkim)}</span></td>
+              <td class="td-ip">${esc(row.ip) || 'n/a'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="tbl-summary">${rows.length} message(s) · Mailbox: ${esc(data.results.map(r => r.email).join(', '))}</div>
   `;
 
+  currentRows = rows;
   updateCopyState();
+}
+
+function exportCsv() {
+  if (!currentRows || currentRows.length === 0) return;
+  const header = ['Subject', 'Inbox/Spam', 'SPF', 'DKIM', 'IP Received'];
+  const lines = [header];
+  for (const row of currentRows) {
+    lines.push([
+      `"${(row.subject || '').replace(/"/g, '""')}"`,
+      row.location,
+      row.spf,
+      row.dkim,
+      `"${row.ip}"`
+    ].join(','));
+  }
+  const csv = lines.join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `inbox-results-${Date.now()}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
 }
 
 function passClass(v) {
@@ -308,6 +342,7 @@ function updateCopyState() {
 
 $('addBox').addEventListener('click', () => addBox({}));
 $('check').addEventListener('click', check);
+$('exportCsv').addEventListener('click', exportCsv);
 $('copyInbox').addEventListener('click', () => copyText(collectIps('inbox').join('\n'), $('copyInbox')));
 $('copySpam').addEventListener('click', () => copyText(collectIps('spam').join('\n'), $('copySpam')));
 loadConfig();
