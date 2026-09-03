@@ -131,13 +131,13 @@ function getConfig() {
 
 async function check() {
   const subject = $('subject').value.trim();
-  if (!subject) {
-    $('message').textContent = 'Enter a subject to search.';
+  const from = $('from').value.trim();
+  if (!subject && !from) {
+    $('message').textContent = 'Enter a subject, a from address, or both.';
     return;
   }
 
   const minutes = Math.max(1, Number($('minutes').value) || 1440);
-  const from = $('from').value.trim();
   const mailboxes = getConfig();
 
   $('check').disabled = true;
@@ -180,15 +180,18 @@ function renderResults(data) {
   $('results').innerHTML = `
     <div class="meta">Subject: ${esc(data.subject)}${data.from ? ' · From: ' + esc(data.from) : ''} · Last ${esc(data.minutes)} min · ${new Date(data.checkedAt).toLocaleString()}</div>
     ${data.results.map(r => {
-      const label = statusLabels[r.status] || r.status;
-      const countEl = r.count !== undefined ? `<div class="meta"><strong>${r.count}</strong> match(es) found</div>` : '';
+      const label = r.status === 'spam' ? 'Spam / Junk' : r.status === 'inbox' ? 'Inbox' : statusLabels[r.status] || r.status;
+      const boxCounts = (r.inbox !== undefined || r.spam !== undefined) ? `
+        <div class="meta"><strong>${r.inbox || 0}</strong> in Inbox · <strong>${r.spam || 0}</strong> in Spam</div>
+      ` : '';
+      const countEl = r.count !== undefined ? `<div class="meta">${r.count} match(es) found</div>` : '';
       const list = (r.found && r.found.length) ? `
         <div class="match-list">
           ${r.found.map(m => `
             <div class="match">
-              <div>${esc(m.folder)}</div>
+              <div><span class="loc ${m.location === 'spam' ? 'spam' : 'inbox'}">${m.location === 'spam' ? 'SPAM' : 'INBOX'}</span> ${esc(m.subject)}</div>
               <div>${m.date ? new Date(m.date).toLocaleString() : ''}</div>
-              <div>${m.from ? 'From: ' + esc(m.from) : ''}</div>
+              <div>From: ${esc(m.from)}</div>
               ${(m.ip && m.ip.length) ? `<div class="ips">IP: ${m.ip.map(ip => esc(ip)).join(' · ')}</div>` : ''}
             </div>
           `).join('')}
@@ -200,6 +203,7 @@ function renderResults(data) {
             <strong>${esc(r.email)}</strong>
             <span class="status ${esc(r.status)}">${esc(label)}</span>
           </div>
+          ${boxCounts}
           ${countEl}
           ${list}
           ${r.error ? `<div class="meta error">${esc(r.error)}</div>` : ''}
