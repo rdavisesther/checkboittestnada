@@ -136,7 +136,7 @@ async function check() {
     return;
   }
 
-  const hours = Math.max(1, Number($('hours').value) || 24);
+  const minutes = Math.max(1, Number($('minutes').value) || 1440);
   const from = $('from').value.trim();
   const mailboxes = getConfig();
 
@@ -148,7 +148,7 @@ async function check() {
     const res = await fetch('/api/check', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mailboxes, subject, hours, from })
+      body: JSON.stringify({ mailboxes, subject, minutes, from })
     });
 
     const text = await res.text();
@@ -178,7 +178,7 @@ function renderResults(data) {
   }
 
   $('results').innerHTML = `
-    <div class="meta">Subject: ${esc(data.subject)}${data.from ? ' · From: ' + esc(data.from) : ''} · Last ${esc(data.hours)}h · ${new Date(data.checkedAt).toLocaleString()}</div>
+    <div class="meta">Subject: ${esc(data.subject)}${data.from ? ' · From: ' + esc(data.from) : ''} · Last ${esc(data.minutes)} min · ${new Date(data.checkedAt).toLocaleString()}</div>
     ${data.results.map(r => {
       const label = statusLabels[r.status] || r.status;
       const countEl = r.count !== undefined ? `<div class="meta"><strong>${r.count}</strong> match(es) found</div>` : '';
