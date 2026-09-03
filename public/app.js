@@ -222,55 +222,56 @@ function renderResults(data) {
   }
 
   $('results').innerHTML = `
-    <div class="meta">Subject: ${esc(data.subject)}${data.from ? ' · From: ' + esc(data.from) : ''} · Last ${esc(data.minutes)} min · ${new Date(data.checkedAt).toLocaleString()}</div>
+    <div class="meta">Subject: ${esc(data.subject)}${data.from ? ' · From: ' + esc(data.from) : ''} · Last ${esc(data.minutes)} min</div>
     ${data.results.map(r => {
-      const label = r.status === 'spam' ? 'Spam / Junk' : r.status === 'inbox' ? 'Inbox' : statusLabels[r.status] || r.status;
-      const boxCounts = (r.inbox !== undefined || r.spam !== undefined) ? `
-        <div class="meta"><strong>${r.inbox || 0}</strong> in Inbox · <strong>${r.spam || 0}</strong> in Spam</div>
-      ` : '';
-      const countEl = r.count !== undefined ? `<div class="meta">${r.count} match(es) found</div>` : '';
       const list = (r.found && r.found.length) ? `
         <div class="match-list">
           ${r.found.map(m => `
             <div class="match">
-              <div><span class="loc ${m.location === 'spam' ? 'spam' : 'inbox'}">${m.location === 'spam' ? 'SPAM' : 'INBOX'}</span> ${esc(m.subject)}</div>
-              <div>${m.date ? new Date(m.date).toLocaleString() : ''}</div>
-              <div>From: ${esc(m.from)}</div>
-              <div class="spf-row">${spfBadge(m.spf)}</div>
-              ${(m.ip && m.ip.length) ? `<div class="ips">IP: ${m.ip.map(ip => esc(ip)).join(' · ')}</div>` : ''}
+              <div class="match-head">
+                <span class="loc ${m.location === 'spam' ? 'spam' : 'inbox'}">${m.location === 'spam' ? 'SPAM' : 'INBOX'}</span>
+                <span class="m-sender">${esc(m.sender || m.from)}</span>
+                <span class="m-date">${m.date ? new Date(m.date).toLocaleString() : ''}</span>
+              </div>
+              <div class="auth-row">
+                <span class="chip ${passClass(m.spf)}">SPF ${esc(m.spf)}</span>
+                <span class="chip ${passClass(m.dkim)}">DKIM ${esc(m.dkim)}</span>
+                <span class="chip domain">${esc(m.domain)}</span>
+                ${(m.ip && m.ip.length) ? `<span class="chip ip">IP: ${m.ip.map(ip => esc(ip)).join(' · ')}</span>` : ''}
+              </div>
             </div>
           `).join('')}
         </div>
-      ` : '';
+      ` : '<div class="empty">No delivery info.</div>';
+
       return `
         <div class="result">
           <div class="result-top">
             <strong>${esc(r.email)}</strong>
-            <span class="status ${esc(r.status)}">${esc(label)}</span>
+            <span class="status ${esc(r.status)}">${esc(statusLabels[r.status] || r.status)}</span>
           </div>
-          ${boxCounts}
-          ${countEl}
+          ${r.inbox !== undefined ? `<div class="meta"><strong>${r.inbox || 0}</strong> Inbox · <strong>${r.spam || 0}</strong> Spam</div>` : ''}
           ${list}
           ${r.error ? `<div class="meta error">${esc(r.error)}</div>` : ''}
         </div>
       `;
     }).join('')}
   `;
+
+  updateCopyState();
+}
+
+function passClass(v) {
+  const s = String(v || '').toLowerCase();
+  if (s === 'pass') return 'ok';
+  if (s === 'fail' || s === 'softfail' || s === 'permerror' || s === 'temperror') return 'fail';
+  return 'none';
 }
 
 function esc(v) {
   return String(v ?? '').replace(/[&<>"']/g, c => ({
     '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'
   }[c]));
-}
-
-function spfBadge(spf) {
-  if (!spf) return '<span class="spf none">SPF: n/a</span>';
-  const s = String(spf);
-  const pass = /pass/i.test(s);
-  const fail = /fail/i.test(s);
-  const cls = pass ? 'pass' : fail ? 'fail' : 'none';
-  return `<span class="spf ${cls}">SPF: ${esc(spf)}</span>`;
 }
 
 function collectIps(location) {
