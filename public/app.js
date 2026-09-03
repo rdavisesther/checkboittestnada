@@ -20,7 +20,9 @@ function saveConfig() {
       pass: $(`b${n}_pass`).value
     };
   }
-  localStorage.setItem('imap_config', JSON.stringify(config));
+  try {
+    localStorage.setItem('imap_config', JSON.stringify(config));
+  } catch {}
 }
 
 function loadConfig() {
@@ -28,17 +30,20 @@ function loadConfig() {
     const raw = localStorage.getItem('imap_config');
     if (!raw) return;
     const config = JSON.parse(raw);
+    if (!config || typeof config !== 'object') return;
     for (const n of [1, 2]) {
       const b = config[`box${n}`];
-      if (!b) continue;
-      $(`b${n}_email`).value = b.email || '';
-      $(`b${n}_host`).value = b.host || '';
-      $(`b${n}_port`).value = b.port || 993;
+      if (!b || typeof b !== 'object') continue;
+      if (b.email) $(`b${n}_email`).value = b.email;
+      if (b.host) $(`b${n}_host`).value = b.host;
+      if (b.port) $(`b${n}_port`).value = b.port;
       $(`b${n}_secure`).checked = b.secure !== false;
-      $(`b${n}_user`).value = b.user || '';
-      $(`b${n}_pass`).value = b.pass || '';
+      if (b.user) $(`b${n}_user`).value = b.user;
+      if (b.pass) $(`b${n}_pass`).value = b.pass;
     }
-  } catch {}
+  } catch {
+    try { localStorage.removeItem('imap_config'); } catch {}
+  }
 }
 
 function getConfig() {
@@ -87,7 +92,14 @@ async function check() {
       body: JSON.stringify({ mailboxes, subject })
     });
 
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      throw new Error('Server returned invalid response. Check if the API is deployed correctly.');
+    }
+
     if (!res.ok) throw new Error(data.error || 'Check failed.');
 
     renderResults(data);
