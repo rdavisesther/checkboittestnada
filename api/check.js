@@ -5,7 +5,7 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed.' });
   }
 
-  const { mailboxes, subject, hours } = req.body || {};
+  const { mailboxes, subject, hours, from } = req.body || {};
 
   if (!subject?.trim()) {
     return res.status(400).json({ error: 'Subject is required.' });
@@ -17,16 +17,18 @@ export default async function handler(req, res) {
 
   const hoursCount = Math.max(1, Number(hours) || 24);
   const sinceMs = Date.now() - hoursCount * 60 * 60 * 1000;
+  const fromFilter = (from || '').trim();
 
   const results = await Promise.all(
     mailboxes.map(async (box) => {
-      const result = await checkMailbox(box, subject.trim(), sinceMs);
+      const result = await checkMailbox(box, subject.trim(), sinceMs, fromFilter);
       return { email: box.email || 'unknown', ...result };
     })
   );
 
   res.json({
     subject: subject.trim(),
+    from: fromFilter || '',
     hours: hoursCount,
     since: new Date(sinceMs).toISOString(),
     checkedAt: new Date().toISOString(),

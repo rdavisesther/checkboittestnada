@@ -137,11 +137,8 @@ async function check() {
   }
 
   const hours = Math.max(1, Number($('hours').value) || 24);
+  const from = $('from').value.trim();
   const mailboxes = getConfig();
-  if (mailboxes.length === 0) {
-    $('message').textContent = 'Configure at least one mailbox.';
-    return;
-  }
 
   $('check').disabled = true;
   $('message').textContent = 'Checking...';
@@ -151,7 +148,7 @@ async function check() {
     const res = await fetch('/api/check', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mailboxes, subject, hours })
+      body: JSON.stringify({ mailboxes, subject, hours, from })
     });
 
     const text = await res.text();
@@ -181,7 +178,7 @@ function renderResults(data) {
   }
 
   $('results').innerHTML = `
-    <div class="meta">Subject: ${esc(data.subject)} · Last ${esc(data.hours)}h · ${new Date(data.checkedAt).toLocaleString()}</div>
+    <div class="meta">Subject: ${esc(data.subject)}${data.from ? ' · From: ' + esc(data.from) : ''} · Last ${esc(data.hours)}h · ${new Date(data.checkedAt).toLocaleString()}</div>
     ${data.results.map(r => {
       const label = statusLabels[r.status] || r.status;
       const countEl = r.count !== undefined ? `<div class="meta"><strong>${r.count}</strong> match(es) found</div>` : '';
