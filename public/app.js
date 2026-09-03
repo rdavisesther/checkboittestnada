@@ -75,6 +75,8 @@ async function check() {
     return;
   }
 
+  const hours = Math.max(1, Number($('hours').value) || 24);
+
   const mailboxes = getConfig();
   if (mailboxes.length === 0) {
     $('message').textContent = 'Configure at least one mailbox.';
@@ -89,7 +91,7 @@ async function check() {
     const res = await fetch('/api/check', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ mailboxes, subject })
+      body: JSON.stringify({ mailboxes, subject, hours })
     });
 
     const text = await res.text();
@@ -119,19 +121,33 @@ function renderResults(data) {
   }
 
   $('results').innerHTML = `
-    <div class="meta">Subject: ${esc(data.subject)} · ${new Date(data.checkedAt).toLocaleString()}</div>
-    ${data.results.map(r => `
-      <div class="result">
-        <div class="result-top">
-          <strong>${esc(r.email)}</strong>
-          <span class="status ${esc(r.status)}">${statusLabels[r.status] || esc(r.status)}</span>
+    <div class="meta">Subject: ${esc(data.subject)} · Last ${esc(data.hours)}h · ${new Date(data.checkedAt).toLocaleString()}</div>
+    ${data.results.map(r => {
+      const label = r.status === 'spam' ? 'Spam / Junk' : r.status === 'inbox' ? 'Inbox' : statusLabels[r.status] || r.status;
+      const countEl = r.count !== undefined ? `<div class="meta"><strong>${r.count}</strong> match(es) found</div>` : '';
+      const list = (r.found && r.found.length) ? `
+        <div class="match-list">
+          ${r.found.map(m => `
+            <div class="match">
+              <div>${esc(m.folder)}</div>
+              <div>${m.date ? new Date(m.date).toLocaleString() : ''}</div>
+              <div>${m.from ? 'From: ' + esc(m.from) : ''}</div>
+            </div>
+          `).join('')}
         </div>
-        ${r.from ? `<div class="meta">From: ${esc(r.from)}</div>` : ''}
-        ${r.folder ? `<div class="meta">Folder: ${esc(r.folder)}</div>` : ''}
-        ${r.date ? `<div class="meta">Date: ${new Date(r.date).toLocaleString()}</div>` : ''}
-        ${r.error ? `<div class="meta error">${esc(r.error)}</div>` : ''}
-      </div>
-    `).join('')}
+      ` : '';
+      return `
+        <div class="result">
+          <div class="result-top">
+            <strong>${esc(r.email)}</strong>
+            <span class="status ${esc(r.status)}">${esc(label)}</span>
+          </div>
+          ${countEl}
+          ${list}
+          ${r.error ? `<div class="meta error">${esc(r.error)}</div>` : ''}
+        </div>
+      `;
+    }).join('')}
   `;
 }
 
