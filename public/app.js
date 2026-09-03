@@ -11,13 +11,20 @@ const statusLabels = {
 let boxCount = 0;
 let lastResults = null;
 
+function gmailDefaults(email) {
+  return {
+    email: email || '',
+    host: 'imap.gmail.com',
+    port: 993,
+    secure: true,
+    user: email || '',
+    pass: ''
+  };
+}
+
 function boxFields(n) {
   return {
     email: $(`b${n}_email`),
-    host: $(`b${n}_host`),
-    port: $(`b${n}_port`),
-    secure: $(`b${n}_secure`),
-    user: $(`b${n}_user`),
     pass: $(`b${n}_pass`)
   };
 }
@@ -39,38 +46,31 @@ function addBox(config = {}) {
     <div class="cnx-status" id="cnx_${n}"></div>
     <div class="form-grid">
       <label>Email <input id="b${n}_email" type="email" placeholder="user@gmail.com"></label>
-      <label>IMAP Host <input id="b${n}_host" type="text" placeholder="imap.gmail.com"></label>
-      <label>Port <input id="b${n}_port" type="number" value="993"></label>
-      <label class="checkline"><input id="b${n}_secure" type="checkbox" checked> SSL/TLS</label>
-      <label>Username <input id="b${n}_user" type="text" placeholder="user@gmail.com"></label>
       <label>Password / App Password <input id="b${n}_pass" type="password" placeholder="xxxx xxxx xxxx xxxx"></label>
     </div>
   `;
   document.getElementById('boxes').appendChild(wrap);
 
+  const defaults = gmailDefaults(config.email || '');
   const c = boxFields(n);
-  if (config.email) c.email.value = config.email;
-  if (config.host) c.host.value = config.host;
-  if (config.port) c.port.value = config.port;
-  if (config.user) c.user.value = config.user;
+  c.email.value = defaults.email;
   if (config.pass) c.pass.value = config.pass;
-  c.secure.checked = config.secure !== false;
+  else if (defaults.pass) c.pass.value = defaults.pass;
 
-  for (const key of ['email','host','port','secure','user','pass']) {
-    c[key].addEventListener('change', saveConfig);
-  }
+  c.email.addEventListener('change', saveConfig);
+  c.pass.addEventListener('change', saveConfig);
 }
 
 async function testCnx(n) {
   const c = boxFields(n);
-  const host = c.host.value.trim();
-  const user = c.user.value.trim();
+  const email = c.email.value.trim();
   const pass = c.pass.value;
+  const defaults = gmailDefaults(email);
   const statusEl = document.getElementById(`cnx_${n}`);
 
-  if (!host || !user || !pass) {
+  if (!email || !pass) {
     statusEl.className = 'cnx-status err';
-    statusEl.textContent = 'Fill host, username and password first.';
+    statusEl.textContent = 'Fill email and password first.';
     return;
   }
 
@@ -82,7 +82,7 @@ async function testCnx(n) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        host, port: Number(c.port.value) || 993, secure: c.secure.checked, user, pass
+        host: defaults.host, port: defaults.port, secure: true, user: email, pass
       })
     });
     const data = await res.json();
@@ -112,13 +112,11 @@ function getAllBoxes() {
     const el = document.getElementById(`b${n}_email`);
     if (!el) continue;
     const c = boxFields(n);
+    const email = c.email.value.trim();
     boxes.push({
       n,
-      email: c.email.value.trim(),
-      host: c.host.value.trim(),
-      port: Number(c.port.value) || 993,
-      secure: c.secure.checked,
-      user: c.user.value.trim(),
+      email,
+      ...gmailDefaults(email),
       pass: c.pass.value
     });
   }
@@ -162,7 +160,7 @@ function loadConfig() {
 function getConfig() {
   saveConfig();
   return getAllBoxes()
-    .filter(b => b.email && b.host && b.user && b.pass)
+    .filter(b => b.email && b.pass)
     .map(b => ({
       email: b.email,
       host: b.host,
