@@ -47,7 +47,7 @@ function addBox(config = {}) {
     <div class="cnx-status" id="cnx_${n}"></div>
     <div class="form-grid">
       <label>Email <input id="b${n}_email" type="email" placeholder="user@gmail.com"></label>
-      <label>Password / App Password <input id="b${n}_pass" type="password" placeholder="xxxx xxxx xxxx xxxx"></label>
+      <label>App Password <input id="b${n}_pass" type="password" placeholder="xxxx xxxx xxxx xxxx"></label>
     </div>
   `;
   document.getElementById('boxes').appendChild(wrap);
